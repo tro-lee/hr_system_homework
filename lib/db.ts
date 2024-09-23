@@ -71,7 +71,16 @@ async function createEmployeesTable() {
       salary DECIMAL(10, 2) NOT NULL,
       department_id INTEGER,
       team_id INTEGER,
-      manager_id INTEGER REFERENCES employees(employee_id)
+      manager_id INTEGER REFERENCES employees(employee_id),
+      birth_date DATE,
+      gender VARCHAR(10),
+      phone_number VARCHAR(20),
+      address TEXT,
+      emergency_contact VARCHAR(100),
+      employment_status VARCHAR(20) DEFAULT 'Active',
+      performance_rating DECIMAL(3, 2),
+      last_promotion_date DATE,
+      training_completed JSONB
     )
   `;
   try {
@@ -88,7 +97,12 @@ async function createDepartmentsTable() {
     CREATE TABLE departments (
       department_id SERIAL PRIMARY KEY,
       department_name VARCHAR(100) NOT NULL,
-      bu_id INTEGER
+      bu_id INTEGER,
+      manager_id INTEGER,
+      budget DECIMAL(15, 2),
+      location VARCHAR(100),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `;
   try {
@@ -241,6 +255,11 @@ async function createTableRelationships() {
     ALTER TABLE accounts
     ADD CONSTRAINT fk_account_employee
     FOREIGN KEY (employee_id) REFERENCES employees(employee_id)
+    `,
+    `
+    ALTER TABLE departments
+    ADD CONSTRAINT fk_department_manager
+    FOREIGN KEY (manager_id) REFERENCES employees(employee_id)
     `
   ];
 
