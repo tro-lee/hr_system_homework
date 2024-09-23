@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -42,100 +42,6 @@ import {
   XCircle,
 } from "lucide-react";
 
-// 模拟数据
-const jobOpenings = [
-  {
-    id: 1,
-    title: "高级前端工程师",
-    department: "技术部",
-    status: "开放",
-    applicants: 15,
-    interviews: 5,
-  },
-  {
-    id: 2,
-    title: "产品经理",
-    department: "产品部",
-    status: "开放",
-    applicants: 20,
-    interviews: 8,
-  },
-  {
-    id: 3,
-    title: "人力资源专员",
-    department: "人力资源部",
-    status: "已关闭",
-    applicants: 30,
-    interviews: 10,
-  },
-  {
-    id: 4,
-    title: "销售代表",
-    department: "销售部",
-    status: "开放",
-    applicants: 25,
-    interviews: 12,
-  },
-];
-
-const candidates = [
-  {
-    id: 1,
-    name: "张三",
-    position: "高级前端工程师",
-    status: "初筛通过",
-    nextStep: "技术面试",
-  },
-  {
-    id: 2,
-    name: "李四",
-    position: "产品经理",
-    status: "待安排面试",
-    nextStep: "初试",
-  },
-  {
-    id: 3,
-    name: "王五",
-    position: "人力资源专员",
-    status: "offer待发",
-    nextStep: "入职",
-  },
-  {
-    id: 4,
-    name: "赵六",
-    position: "销售代表",
-    status: "面试中",
-    nextStep: "二面",
-  },
-];
-
-const offers = [
-  {
-    id: 1,
-    candidateName: "张三",
-    position: "高级前端工程师",
-    status: "待审批",
-    salary: "25k-30k",
-    startDate: "2023-07-01",
-  },
-  {
-    id: 2,
-    candidateName: "李四",
-    position: "产品经理",
-    status: "已批准",
-    salary: "20k-25k",
-    startDate: "2023-07-15",
-  },
-  {
-    id: 3,
-    candidateName: "王五",
-    position: "人力资源专员",
-    status: "已发送",
-    salary: "15k-18k",
-    startDate: "2023-08-01",
-  },
-];
-
 export default function RecruitmentManagement() {
   const [activeTab, setActiveTab] = useState("job-openings");
   const [searchTerm, setSearchTerm] = useState("");
@@ -144,23 +50,49 @@ export default function RecruitmentManagement() {
   const [selectedCandidate, setSelectedCandidate] = useState<any>(null);
   const [selectedOffer, setSelectedOffer] = useState<any>(null);
   const [isGeneratingOffer, setIsGeneratingOffer] = useState(false);
+  const [jobOpenings, setJobOpenings] = useState([]);
+  const [candidates, setCandidates] = useState([]);
+  const [offers, setOffers] = useState([]);
+
+  useEffect(() => {
+    fetchRecruitmentData();
+  }, []);
+
+  const fetchRecruitmentData = async () => {
+    try {
+      const response = await fetch("/api/recruitment");
+      const data = await response.json();
+      setJobOpenings(data.jobOpenings);
+      setCandidates(data.candidates);
+      setOffers(data.offers);
+    } catch (error) {
+      console.error("Error fetching recruitment data:", error);
+    }
+  };
 
   const filteredJobs = jobOpenings.filter(
     (job) =>
       job.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (selectedDepartment === "all" || job.department === selectedDepartment)
+      (selectedDepartment === "all" ||
+        job.organization.name === selectedDepartment)
   );
 
   const filteredCandidates = candidates.filter(
     (candidate) =>
       candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      candidate.position.toLowerCase().includes(searchTerm.toLowerCase())
+      candidate.applications.some((app) =>
+        app.jobOpening.title.toLowerCase().includes(searchTerm.toLowerCase())
+      )
   );
 
   const filteredOffers = offers.filter(
     (offer) =>
-      offer.candidateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      offer.position.toLowerCase().includes(searchTerm.toLowerCase())
+      offer.application.candidate.name
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      offer.application.jobOpening.title
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
   );
 
   const handleGenerateOffer = () => {
@@ -194,6 +126,36 @@ export default function RecruitmentManagement() {
     // 这里应该更新状态，但由于我们使用的是模拟数据，所以这步在这个例子中被省略
     setSelectedOffer({ ...selectedOffer, status: "已发送" });
   };
+
+  async function handleAcceptOffer(offerId: number) {
+    try {
+      const response = await fetch("/api/recruitment", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: offerId,
+          status: "accepted",
+          isAccepted: true,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to accept offer");
+      }
+
+      const data = await response.json();
+      // 处理响应，例如更新UI或显示消息
+      console.log(data.message);
+      if (data.employee) {
+        console.log("New employee created:", data.employee);
+      }
+    } catch (error) {
+      console.error("Error accepting offer:", error);
+      // 处理错误，例如显示错误消息
+    }
+  }
 
   return (
     <div className="container mx-auto p-4">
@@ -232,10 +194,11 @@ export default function RecruitmentManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">所有部门</SelectItem>
-                  <SelectItem value="技术部">技术部</SelectItem>
-                  <SelectItem value="产品部">产品部</SelectItem>
-                  <SelectItem value="人力资源部">人力资源部</SelectItem>
-                  <SelectItem value="销售部">销售部</SelectItem>
+                  {jobOpenings.map((job) => (
+                    <SelectItem key={job.id} value={job.organization.name}>
+                      {job.organization.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -260,10 +223,16 @@ export default function RecruitmentManagement() {
                 {filteredJobs.map((job) => (
                   <TableRow key={job.id}>
                     <TableCell>{job.title}</TableCell>
-                    <TableCell>{job.department}</TableCell>
+                    <TableCell>{job.organization.name}</TableCell>
                     <TableCell>{job.status}</TableCell>
-                    <TableCell>{job.applicants}</TableCell>
-                    <TableCell>{job.interviews}</TableCell>
+                    <TableCell>{job.applications.length}</TableCell>
+                    <TableCell>
+                      {
+                        job.applications.filter(
+                          (app) => app.interviews.length > 0
+                        ).length
+                      }
+                    </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         <Button
@@ -317,9 +286,21 @@ export default function RecruitmentManagement() {
                 {filteredCandidates.map((candidate) => (
                   <TableRow key={candidate.id}>
                     <TableCell>{candidate.name}</TableCell>
-                    <TableCell>{candidate.position}</TableCell>
-                    <TableCell>{candidate.status}</TableCell>
-                    <TableCell>{candidate.nextStep}</TableCell>
+                    <TableCell>
+                      {candidate.applications
+                        .map((app) => app.jobOpening.title)
+                        .join(", ")}
+                    </TableCell>
+                    <TableCell>
+                      {candidate.applications
+                        .map((app) => app.status)
+                        .join(", ")}
+                    </TableCell>
+                    <TableCell>
+                      {candidate.applications
+                        .map((app) => app.nextStep)
+                        .join(", ")}
+                    </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         <Dialog>
@@ -338,7 +319,10 @@ export default function RecruitmentManagement() {
                                 候选人详情 - {selectedCandidate?.name}
                               </DialogTitle>
                               <DialogDescription>
-                                应聘职位: {selectedCandidate?.position}
+                                应聘职位:{" "}
+                                {selectedCandidate?.applications
+                                  .map((app) => app.jobOpening.title)
+                                  .join(", ")}
                               </DialogDescription>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
@@ -348,7 +332,9 @@ export default function RecruitmentManagement() {
                                 </Label>
                                 <Input
                                   id="status"
-                                  value={selectedCandidate?.status}
+                                  value={selectedCandidate?.applications
+                                    .map((app) => app.status)
+                                    .join(", ")}
                                   className="col-span-3"
                                   readOnly
                                 />
@@ -358,11 +344,13 @@ export default function RecruitmentManagement() {
                                   htmlFor="next-step"
                                   className="text-right"
                                 >
-                                  下一步骤
+                                  下��步骤
                                 </Label>
                                 <Input
                                   id="next-step"
-                                  value={selectedCandidate?.nextStep}
+                                  value={selectedCandidate?.applications
+                                    .map((app) => app.nextStep)
+                                    .join(", ")}
                                   className="col-span-3"
                                   readOnly
                                 />
@@ -417,10 +405,12 @@ export default function RecruitmentManagement() {
               <TableBody>
                 {filteredOffers.map((offer) => (
                   <TableRow key={offer.id}>
-                    <TableCell>{offer.candidateName}</TableCell>
-                    <TableCell>{offer.position}</TableCell>
+                    <TableCell>{offer.application.candidate.name}</TableCell>
+                    <TableCell>{offer.application.jobOpening.title}</TableCell>
                     <TableCell>{offer.salary}</TableCell>
-                    <TableCell>{offer.startDate}</TableCell>
+                    <TableCell>
+                      {offer.startDate.toLocaleDateString()}
+                    </TableCell>
                     <TableCell>{offer.status}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
@@ -437,11 +427,13 @@ export default function RecruitmentManagement() {
                           <DialogContent className="sm:max-w-[625px]">
                             <DialogHeader>
                               <DialogTitle>
-                                Offer详情 - {selectedOffer?.candidateName}
+                                Offer详情 -{" "}
+                                {selectedOffer?.application.candidate.name}
                               </DialogTitle>
                               <DialogDescription>
-                                职位: {selectedOffer?.position} | 状态:{" "}
-                                {selectedOffer?.status}
+                                职位:{" "}
+                                {selectedOffer?.application.jobOpening.title} |
+                                状态: {selectedOffer?.status}
                               </DialogDescription>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
@@ -468,7 +460,7 @@ export default function RecruitmentManagement() {
                                 </Label>
                                 <Input
                                   id="start-date"
-                                  value={selectedOffer?.startDate}
+                                  value={selectedOffer?.startDate.toLocaleDateString()}
                                   className="col-span-3"
                                   readOnly
                                 />
@@ -510,6 +502,16 @@ export default function RecruitmentManagement() {
                                   <Mail className="mr-2 h-4 w-4" /> 发送Offer
                                 </Button>
                               )}
+                              {selectedOffer?.status === "已发送" && (
+                                <Button
+                                  onClick={() =>
+                                    handleAcceptOffer(selectedOffer.id)
+                                  }
+                                >
+                                  <CheckCircle className="mr-2 h-4 w-4" />{" "}
+                                  接受Offer
+                                </Button>
+                              )}
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
@@ -534,7 +536,8 @@ export default function RecruitmentManagement() {
           <DialogHeader>
             <DialogTitle>职位详情 - {selectedJob?.title}</DialogTitle>
             <DialogDescription>
-              部门: {selectedJob?.department} | 状态: {selectedJob?.status}
+              部门: {selectedJob?.organization.name} | 状态:{" "}
+              {selectedJob?.status}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">

@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/pagination";
 import { Search } from "lucide-react";
 
-// 定义 Employee 类型
+// 更新 Employee 类型定义
 type Employee = {
   id: number;
   name: string;

@@ -7,13 +7,217 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+// 组织模型，用于表示公司的组织结构
+model Organization {
+  id          Int            @id @default(autoincrement()) // 组织的唯一标识符
+  name        String // 组织名称
+  parentId    Int? // 父组织的ID，可为空
+  parent      Organization?  @relation("OrganizationHierarchy", fields: [parentId], references: [id]) // 与父组织的关系
+  children    Organization[] @relation("OrganizationHierarchy") // 子组织列表
+  employees   Employee[] // 该组织下的员工列表
+  jobOpenings JobOpening[] // 该组织发布的职位列表
+}
+
+// 员工模型，用于存储员工信息
 model Employee {
-  id         Int      @id @default(autoincrement())
-  name       String
-  department String
-  position   String
-  email      String   @unique
-  employeeId String   @unique
-  hireDate   DateTime
-  phone      String
+  id                     Int                      @id @default(autoincrement()) // 员工的唯一标识符
+  name                   String // 员工姓名
+  position               String // 职位
+  hireDate               DateTime // 入职日期
+  phone                  String // 联系电话
+  organizationId         Int // 所属组织的ID
+  organization           Organization             @relation(fields: [organizationId], references: [id]) // 与所属组织的关系
+  ResignationApplication ResignationApplication[]
+  FormerEmployeeAccount  FormerEmployeeAccount[]
+
+  salaryBills      SalaryBill[]
+  billApplications BillApplication[] @relation("BillApplicant")
+
+  salaryStructures  SalaryStructure[]
+  salaryAdjustments SalaryAdjustment[]
+  bonuses           Bonus[]
+  attendances       Attendance[]
+  deductions        Deduction[]
+}
+
+// 职位开放模型，用于管理招聘职位
+model JobOpening {
+  id             Int           @id @default(autoincrement()) // 职位的唯一标识符
+  title          String // 职位标题
+  description    String // 职位描述
+  requirements   String // 职位要求
+  salaryRange    String // 薪资范围
+  status         String // 职位状态，例如：'开放', '已关闭'
+  createdAt      DateTime      @default(now()) // 创建时间
+  updatedAt      DateTime      @updatedAt // 更新时间
+  organizationId Int // 发布该职位的组织ID
+  organization   Organization  @relation(fields: [organizationId], references: [id]) // 与发布组织的关系
+  applications   Application[] // 该职位收到的申请列表
+}
+
+// 候选人模型，用于存储求职者信息
+model Candidate {
+  id           Int           @id @default(autoincrement()) // 候选人的唯一标识符
+  name         String // 候选人姓名
+  email        String        @unique // 候选人邮箱，唯一
+  phone        String? // 候选人电话，可选
+  applications Application[] // 候选人提交的申请列表
+}
+
+// 申请模型，用于管理求职申请
+model Application {
+  id           Int         @id @default(autoincrement()) // 申请的唯一标识符
+  candidateId  Int // 请人ID
+  jobOpeningId Int // 申请职位ID
+  status       String // 申请状态，例如：'初筛通过', '待安排面试', 'offer待发'
+  nextStep     String? // 下一步操作，可选
+  createdAt    DateTime    @default(now()) // 创建时间
+  updatedAt    DateTime    @updatedAt // 更新时间
+  candidate    Candidate   @relation(fields: [candidateId], references: [id]) // 与候选人的关系
+  jobOpening   JobOpening  @relation(fields: [jobOpeningId], references: [id]) // 与职位的关系
+  interviews   Interview[] // 该申请相关的面试列表
+  offer        Offer? // 该申请相关的offer，可能为空
+}
+
+// 面试模型，用于管理面试过程
+model Interview {
+  id            Int         @id @default(autoincrement()) // 面试的唯一标识符
+  applicationId Int // 关联的申请ID
+  scheduledAt   DateTime // 面试安排时间
+  feedback      String? // 面试反馈，可选
+  status        String // 面试状态，例如：'待进行', '已完成', '已取消'
+  application   Application @relation(fields: [applicationId], references: [id]) // 与申请的关系
+}
+
+// Offer模型，用于管理录用通知
+model Offer {
+  id            Int         @id @default(autoincrement()) // Offer的唯一标识符
+  applicationId Int         @unique // 关联的申请ID，唯一
+  salary        String // 薪资
+  startDate     DateTime // 入职日期
+  status        String // Offer状态，例如：'待生成', '待审批', '已批', '已发送'
+  isAccepted    Boolean     @default(false) // 新增字段，表示 Offer 是否被接受
+  createdAt     DateTime    @default(now()) // 创建时间
+  updatedAt     DateTime    @updatedAt // 更新时间
+  application   Application @relation(fields: [applicationId], references: [id]) // 与申请的关系
+}
+
+// 离职申请模型，用于管理离职申请
+model ResignationApplication {
+  id         Int      @id @default(autoincrement()) // 离职申请的唯一标识符
+  employeeId Int // 申请离职的员工ID
+  reason     String // 离职原因
+  status     String // 离职申请状态，例如：'待审批', '已批准', '已拒绝'
+  createdAt  DateTime @default(now()) // 创建时间
+  updatedAt  DateTime @updatedAt // 更新时间
+  employee   Employee @relation(fields: [employeeId], references: [id]) // 与员工的关系
+}
+
+// 离职人员账户模型，用于管理离职人员的账户信息
+model FormerEmployeeAccount {
+  id             Int      @id @default(autoincrement()) // 离职人员账户的唯一标识符
+  employeeId     Int // 离职员工ID
+  email          String   @unique // 离职员工邮箱，唯一
+  phone          String? // 离职员工电话，可选
+  lastWorkingDay DateTime // 最后工作日
+  createdAt      DateTime @default(now()) // 创建时间
+  updatedAt      DateTime @updatedAt // 更新时间
+  employee       Employee @relation(fields: [employeeId], references: [id]) // 与员工的关系
+}
+
+// 薪资账单模型，用于记录每个员工的薪资支付情况
+model SalaryBill {
+  id         Int      @id @default(autoincrement()) // 薪资账单的唯一标识符
+  employeeId Int // 关联的员工ID
+  amount     Float // 薪资总额
+  billDate   DateTime // 账单日期
+  status     String // 账单状态，例如：'待支付', '已支付', '已取消'
+  createdAt  DateTime @default(now()) // 创建时间
+  updatedAt  DateTime @updatedAt // 更新时间
+  employee   Employee @relation(fields: [employeeId], references: [id]) // 与员工的关系
+
+  billApplications BillApplication[] // 与该账单相关的申请
+  deductions       Deduction[] // 该账单的扣除项
+}
+
+// 账单申请模型，用于处理员工对薪资账单的申请或问询
+model BillApplication {
+  id           Int        @id @default(autoincrement()) // 申请的唯一标识符
+  salaryBillId Int // 关联的薪资账单ID
+  applicantId  Int // 申请人（员工）ID
+  reason       String // 申请原因
+  status       String // 申请状态，例如：'待审核', '已批准', '已拒绝'
+  createdAt    DateTime   @default(now()) // 创建时间
+  updatedAt    DateTime   @updatedAt // 更新时间
+  salaryBill   SalaryBill @relation(fields: [salaryBillId], references: [id]) // 与薪资账单的关系
+  applicant    Employee   @relation("BillApplicant", fields: [applicantId], references: [id]) // 与申请人（员工）的关系
+}
+
+// 薪资结构模型，用于定义每个员工的薪资组成
+model SalaryStructure {
+  id         Int       @id @default(autoincrement()) // 薪资结构的唯一标识符
+  employeeId Int // 关联的员工ID
+  baseSalary Float // 基本工资
+  allowances Float // 津贴
+  benefits   Float // 福利
+  startDate  DateTime // 生效开始日期
+  endDate    DateTime? // 生效结束日期，可为空（表示当前有效）
+  createdAt  DateTime  @default(now()) // 创建时间
+  updatedAt  DateTime  @updatedAt // 更新时间
+  employee   Employee  @relation(fields: [employeeId], references: [id]) // 与员工的关系
+}
+
+// 薪资调整记录模型，用于跟踪员工薪资的变更历史
+model SalaryAdjustment {
+  id             Int      @id @default(autoincrement()) // 调整记录的唯一标识符
+  employeeId     Int // 关联的员工ID
+  oldSalary      Float // 调整前的薪资
+  newSalary      Float // 调整后的薪资
+  adjustmentDate DateTime // 调整日期
+  reason         String // 调整原因
+  approvedBy     String // 批准人
+  createdAt      DateTime @default(now()) // 创建时间
+  updatedAt      DateTime @updatedAt // 更新时间
+  employee       Employee @relation(fields: [employeeId], references: [id]) // 与员工的关系
+}
+
+// 奖金/绩效模型，用于记录员工的额外奖励
+model Bonus {
+  id          Int      @id @default(autoincrement()) // 奖金记录的唯一标识符
+  employeeId  Int // 关联的员工ID
+  amount      Float // 奖金金额
+  type        String // 奖金类型，例如：'年终奖', '季度绩效', '项目奖金'
+  description String // 奖金描述
+  issueDate   DateTime // 发放日期
+  createdAt   DateTime @default(now()) // 创建时间
+  updatedAt   DateTime @updatedAt // 更新时间
+  employee    Employee @relation(fields: [employeeId], references: [id]) // 与员工的关系
+}
+
+// 考勤记录模型，用于跟踪员工的出勤情况
+model Attendance {
+  id         Int       @id @default(autoincrement()) // 考勤记录的唯一标识符
+  employeeId Int // 关联的员工ID
+  date       DateTime // 考勤日期
+  checkIn    DateTime // 签到时间
+  checkOut   DateTime? // 签退时间，可为空
+  status     String // 考勤状态，例如：'正常', '迟到', '早退', '缺勤'
+  note       String? // 备注，可为空
+  createdAt  DateTime  @default(now()) // 创建时间
+  updatedAt  DateTime  @updatedAt // 更新时间
+  employee   Employee  @relation(fields: [employeeId], references: [id]) // 与员工的关系
+}
+
+// 税收和扣除项模型，用于记录薪资中的各种扣除
+model Deduction {
+  id           Int        @id @default(autoincrement()) // 扣除项的唯一标识符
+  employeeId   Int // 关联的员工ID
+  salaryBillId Int // 关联的薪资账单ID
+  type         String // 扣除类型，例如：'所得税', '社保', '公积金', '其他扣除'
+  amount       Float // 扣除金额
+  description  String? // 扣除描述，可为空
+  createdAt    DateTime   @default(now()) // 创建时间
+  updatedAt    DateTime   @updatedAt // 更新时间
+  employee     Employee   @relation(fields: [employeeId], references: [id]) // 与员工的关系
+  salaryBill   SalaryBill @relation(fields: [salaryBillId], references: [id]) // 与薪资账单的关系
 }
