@@ -48,8 +48,6 @@ export type Employee = {
 export default function EmployeeManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
 
   useEffect(() => {
     fetchEmployees();
@@ -65,37 +63,6 @@ export default function EmployeeManagement() {
     }
   };
 
-  const handleAddEmployee = () => {
-    setCurrentEmployee(null);
-    setIsModalOpen(true);
-  };
-
-  const handleEditEmployee = (employee: Employee) => {
-    setCurrentEmployee(employee);
-    setIsModalOpen(true);
-  };
-
-  const handleDeleteEmployee = async (id: number) => {
-    await fetch(`/api/employees/${id}`, { method: "DELETE" });
-    fetchEmployees();
-  };
-
-  const handleSaveEmployee = async (employee: Employee) => {
-    if (currentEmployee) {
-      await fetch(`/api/employees/${currentEmployee.id}`, {
-        method: "PUT",
-        body: JSON.stringify(employee),
-      });
-    } else {
-      await fetch("/api/employees", {
-        method: "POST",
-        body: JSON.stringify(employee),
-      });
-    }
-    setIsModalOpen(false);
-    fetchEmployees();
-  };
-
   const filteredEmployees = employees.filter(
     (employee) =>
       employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -105,8 +72,6 @@ export default function EmployeeManagement() {
       employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.phone.includes(searchTerm)
   );
-
-  const form = useForm();
 
   return (
     <div className="container mx-auto p-4">
@@ -123,7 +88,6 @@ export default function EmployeeManagement() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Button onClick={handleAddEmployee}>添加员工</Button>
       </div>
 
       <div className="rounded-md border">
@@ -137,7 +101,6 @@ export default function EmployeeManagement() {
               <TableHead>入职日期</TableHead>
               <TableHead>邮箱</TableHead>
               <TableHead>联系电话</TableHead>
-              <TableHead>操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -150,14 +113,6 @@ export default function EmployeeManagement() {
                 <TableCell>{employee.hireDate}</TableCell>
                 <TableCell>{employee.email}</TableCell>
                 <TableCell>{employee.phone}</TableCell>
-                <TableCell>
-                  <Button onClick={() => handleEditEmployee(employee)}>
-                    <Edit />
-                  </Button>
-                  <Button onClick={() => handleDeleteEmployee(employee.id)}>
-                    <Trash />
-                  </Button>
-                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -180,63 +135,6 @@ export default function EmployeeManagement() {
           </PaginationItem>
         </PaginationContent>
       </Pagination>
-
-      {isModalOpen && (
-        // Replace Modal with Dialog
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <Form {...form}>
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>姓名</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="employeeId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>工号</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="department"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>部门</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="position"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>职位</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <Button type="submit">保存</Button>
-          </Form>
-        </Dialog>
-      )}
     </div>
   );
 }
