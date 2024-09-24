@@ -7,16 +7,7 @@ import { Button } from "@/components/ui/button";
 interface Employee {
   id: number;
   name: string;
-}
-
-interface Position {
-  id: number;
-  name: string;
-}
-
-interface EmployeeOrganization {
-  employee: Employee;
-  position: Position;
+  position: string; // 新增字段
   hireDate: string;
   phone: string;
 }
@@ -25,7 +16,7 @@ interface OrganizationNode {
   id: number;
   name: string;
   children?: OrganizationNode[];
-  employeeOrganizations?: EmployeeOrganization[];
+  employees?: Employee[]; // 更新字段名
 }
 
 interface TreeNodeProps {
@@ -61,9 +52,9 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, level }) => {
         )}
         <Users className="h-4 w-4 mr-2" />
         <span className="font-semibold">{node.name}</span>
-        {node.employeeOrganizations && (
+        {node.employees && (
           <span className="ml-2 text-sm text-gray-500">
-            ({node.employeeOrganizations.length} 名员工)
+            ({node.employees.length} 名员工)
           </span>
         )}
       </div>
@@ -73,14 +64,14 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, level }) => {
             node.children.map((child) => (
               <TreeNode key={child.id} node={child} level={level + 1} />
             ))}
-          {node.employeeOrganizations && (
+          {node.employees && (
             <div className="mt-2">
-              {node.employeeOrganizations.map((eo, index) => (
-                <div key={index} className="flex items-center py-1">
+              {node.employees.map((employee) => (
+                <div key={employee.id} className="flex items-center py-1">
                   <User className="h-3 w-3 mr-2" />
-                  <span className="text-sm">{eo.employee.name}</span>
+                  <span className="text-sm">{employee.name}</span>
                   <span className="text-xs text-gray-500 ml-2">
-                    - {eo.position.name}
+                    - {employee.position}
                   </span>
                 </div>
               ))}
@@ -92,18 +83,12 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, level }) => {
   );
 };
 
-const defaultOrgStructure: OrganizationNode = {
-  id: 0,
-  name: "默认组织",
-  children: [],
-  employeeOrganizations: [],
-};
-
 export default function OrganizationStructure() {
   const [orgStructure, setOrgStructure] = useState<OrganizationNode | null>(
     null
   );
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchOrgStructure() {
@@ -116,11 +101,11 @@ export default function OrganizationStructure() {
         if (data.length > 0) {
           setOrgStructure(data[0]); // 使用第一个组织作为根节点
         } else {
-          setOrgStructure(defaultOrgStructure); // 使用默认组织结构
+          setOrgStructure(null); // 无组织数据
         }
       } catch (error) {
         console.error("Error fetching organization structure:", error);
-        setOrgStructure(defaultOrgStructure); // 出错时也使用默认组织结构
+        setError("Error fetching organization structure");
       } finally {
         setIsLoading(false);
       }
@@ -131,6 +116,10 @@ export default function OrganizationStructure() {
 
   if (isLoading) {
     return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>{error}</div>;
   }
 
   return (

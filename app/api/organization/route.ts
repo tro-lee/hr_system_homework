@@ -5,41 +5,21 @@ export async function GET() {
   try {
     const organizationStructure = await prisma.organization.findMany({
       include: {
+        employees: true,
         children: {
           include: {
+            employees: true,
             children: {
               include: {
+                employees: true,
                 children: {
                   include: {
                     children: true,
-                    employeeOrganizations: {
-                      include: {
-                        employee: true,
-                        position: true,
-                      },
-                    },
-                  },
-                },
-                employeeOrganizations: {
-                  include: {
-                    employee: true,
-                    position: true,
+                    employees: true,
                   },
                 },
               },
             },
-            employeeOrganizations: {
-              include: {
-                employee: true,
-                position: true,
-              },
-            },
-          },
-        },
-        employeeOrganizations: {
-          include: {
-            employee: true,
-            position: true,
           },
         },
       },
