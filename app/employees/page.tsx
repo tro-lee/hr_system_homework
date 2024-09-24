@@ -1,6 +1,17 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+// Replace Modal with Dialog
+import { Dialog } from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"; // Ensure FormItem is imported
 import {
   Table,
   TableBody,
@@ -18,10 +29,12 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Search } from "lucide-react";
+import { Search, Edit, Trash } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { EmployeeResponse } from "../api/employees/route";
 
 // 更新 Employee 类型定义
-type Employee = {
+export type Employee = {
   id: number;
   name: string;
   department: string;
@@ -35,6 +48,8 @@ type Employee = {
 export default function EmployeeManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
 
   useEffect(() => {
     fetchEmployees();
@@ -42,8 +57,43 @@ export default function EmployeeManagement() {
 
   const fetchEmployees = async () => {
     const response = await fetch("/api/employees");
-    const data = await response.json();
-    setEmployees(data);
+    const data = (await response.json()) as EmployeeResponse;
+    if (data.error) {
+      console.error(data.error);
+    } else {
+      setEmployees(data.employees);
+    }
+  };
+
+  const handleAddEmployee = () => {
+    setCurrentEmployee(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditEmployee = (employee: Employee) => {
+    setCurrentEmployee(employee);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteEmployee = async (id: number) => {
+    await fetch(`/api/employees/${id}`, { method: "DELETE" });
+    fetchEmployees();
+  };
+
+  const handleSaveEmployee = async (employee: Employee) => {
+    if (currentEmployee) {
+      await fetch(`/api/employees/${currentEmployee.id}`, {
+        method: "PUT",
+        body: JSON.stringify(employee),
+      });
+    } else {
+      await fetch("/api/employees", {
+        method: "POST",
+        body: JSON.stringify(employee),
+      });
+    }
+    setIsModalOpen(false);
+    fetchEmployees();
   };
 
   const filteredEmployees = employees.filter(
@@ -56,11 +106,13 @@ export default function EmployeeManagement() {
       employee.phone.includes(searchTerm)
   );
 
+  const form = useForm();
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">员工信息管理系统</h1>
 
-      <div className="mb-4">
+      <div className="mb-4 flex justify-between">
         <div className="relative">
           <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <Input
@@ -71,6 +123,7 @@ export default function EmployeeManagement() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        <Button onClick={handleAddEmployee}>添加员工</Button>
       </div>
 
       <div className="rounded-md border">
@@ -84,6 +137,7 @@ export default function EmployeeManagement() {
               <TableHead>入职日期</TableHead>
               <TableHead>邮箱</TableHead>
               <TableHead>联系电话</TableHead>
+              <TableHead>操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -96,6 +150,14 @@ export default function EmployeeManagement() {
                 <TableCell>{employee.hireDate}</TableCell>
                 <TableCell>{employee.email}</TableCell>
                 <TableCell>{employee.phone}</TableCell>
+                <TableCell>
+                  <Button onClick={() => handleEditEmployee(employee)}>
+                    <Edit />
+                  </Button>
+                  <Button onClick={() => handleDeleteEmployee(employee.id)}>
+                    <Trash />
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -118,6 +180,63 @@ export default function EmployeeManagement() {
           </PaginationItem>
         </PaginationContent>
       </Pagination>
+
+      {isModalOpen && (
+        // Replace Modal with Dialog
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <Form {...form}>
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>姓名</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="employeeId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>工号</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="department"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>部门</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="position"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>职位</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <Button type="submit">保存</Button>
+          </Form>
+        </Dialog>
+      )}
     </div>
   );
 }
